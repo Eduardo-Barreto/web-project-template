@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "jsx-a11y", "import", "oxc"],
+  "env": { "browser": true, "es2024": true },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+    ],
+    "typescript/consistent-type-imports": "error",
+    "eslint/prefer-const": "error",
+    "eslint/no-console": "warn",
+    "import/no-default-export": "error",
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }],
+    "react/rules-of-hooks": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["src/routes/**", "src/components/ui/**", "src/features/**"],
+      "rules": { "react/only-export-components": "off" }
+    },
+    {
+      "files": ["vite.config.ts", "playwright.config.ts", "*.config.ts"],
+      "rules": { "import/no-default-export": "off" }
+    },
+    {
+      "files": ["**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        "eslint/no-console": "off"
+      }
+    },
+    {
+      "files": ["scripts/**"],
+      "rules": { "eslint/no-console": "off" }
+    }
+  ]
+}
