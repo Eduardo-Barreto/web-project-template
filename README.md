@@ -47,6 +47,12 @@ O dashboard de exemplo (`/dashboard`, `src/features/members.tsx`) mostra o padr�
 
 Dá push na `main` e o workflow `deploy-pages` builda com `BASE_PATH=/<repo>/`, copia o `index.html` pra `404.html` (pros deep links sobreviverem ao refresh) e publica no GitHub Pages, em `owner.github.io/<repo>`. Configure o Pages → Source do repo pra GitHub Actions uma vez. Pages publicado é público mesmo com o repo privado (a não ser que seja GitHub Enterprise Cloud com Pages privado de verdade), então não tem auth no app — não guarde nada sensível no bundle.
 
+## Review adversarial
+
+Todo PR passa por um review adversarial em duas etapas (`.github/workflows/adversarial-review.yml`): uma etapa propõe os achados, outra verifica e posta só o que sobrevive com evidência. Roda pela sua assinatura do Claude, não por token de API.
+
+Pra ligar, uma vez por repo: gere o token com `claude setup-token` e salve como secret `CLAUDE_CODE_OAUTH_TOKEN` (repo → Settings → Secrets and variables → Actions, ou no nível da org pra valer em todos). Sem o secret, a Action falha na auth. PRs de fork são pulados de propósito, porque forks não recebem secrets.
+
 ## Skills sugeridas
 
 Trabalhando nesse repo com o Claude Code, vale usar:
@@ -60,4 +66,4 @@ Trabalhando nesse repo com o Claude Code, vale usar:
 - `/doctor`, o gate local (oxlint, oxfmt, bun test, knip)
 - `/ai-slop-cleaner` (omc), pra tirar o slop de IA do código e da prosa
 
-A prosa nesse repo segue o `docs/anti-slop-guidelines.md`.
+Todo texto nesse repo segue as anti-slop guidelines em https://files.barreto.sh/slop.md.

@@ -90,3 +90,6 @@ console.log(
     ? 'Typecheck passou. Rode: bun run dev'
     : `Typecheck falhou, confira:\n${check.stderr.toString()}`,
 )
+console.log(
+  '\nAntes de abrir o primeiro PR: gere um token com `claude setup-token` e salve como secret CLAUDE_CODE_OAUTH_TOKEN no repo, senão o review adversarial não roda.',
+)
