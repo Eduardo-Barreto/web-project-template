@@ -125,8 +125,24 @@ export const parseBeforeUse = defineRule({
   create(context) {
     const offenders: ESTree.Node[] = []
 
+    /**
+     * Source text of `node` with every comment blanked out, keeping the original offsets.
+     * Matching raw text would let a comment merely mentioning `.parse(` satisfy the rule,
+     * a false negative at exactly the boundary this rule exists to guard.
+     */
+    const codeWithoutComments = (node: ESTree.Node) => {
+      const [nodeStart] = context.sourceCode.getRange(node)
+      let text = context.sourceCode.getText(node)
+      for (const comment of context.sourceCode.getCommentsInside(node)) {
+        const [start, end] = context.sourceCode.getRange(comment)
+        text =
+          text.slice(0, start - nodeStart) + ' '.repeat(end - start) + text.slice(end - nodeStart)
+      }
+      return text
+    }
+
     const collect = (node: ESTree.Node) => {
-      const body = context.sourceCode.getText(node)
+      const body = codeWithoutComments(node)
       if (RESPONSE_READ.test(body) && !ZOD_PARSE.test(body)) {
         offenders.push(node)
       }

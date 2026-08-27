@@ -69,6 +69,10 @@ describe('data-fetching rules', () => {
     expect(countIn('violates-data-fetching', 'parse-before-use')).toBe(2)
   })
 
+  test('does not accept a comment mentioning parse as the validation itself', () => {
+    expect(rulesIn('violates-parse-in-comment')).toContain('parse-before-use')
+  })
+
   test('flags a manual isLoading branch', () => {
     expect(flagged).toContain('no-manual-loading-branch')
   })
@@ -95,6 +99,10 @@ describe('comment rules', () => {
 
   test('reaches a function reached only through a default export', () => {
     expect(rulesIn('violates-default-export')).toContain('require-tsdoc-on-exports')
+  })
+
+  test('resolves an exported name to its module-scope declaration, not a nested shadow', () => {
+    expect(countIn('clean-shadowed-names', 'require-tsdoc-on-exports')).toBe(0)
   })
 })
 

@@ -113,12 +113,17 @@ export const requireTsdocOnExports = defineRule({
           context.report({ node, messageId: 'document' })
         }
       },
+      // Module scope only. `export { foo }` can only name a module-scope binding, so a nested
+      // function sharing the name is a different symbol. Collecting it too would let the
+      // later visit overwrite the real declaration, reporting the wrong node or going quiet
+      // on a genuine violation, depending on which of the two carries the docblock.
       FunctionDeclaration(node) {
-        if (node.id !== null && node.parent.type !== 'ExportNamedDeclaration') {
+        if (node.id !== null && node.parent.type === 'Program') {
           candidates.set(node.id.name, node)
         }
       },
       VariableDeclarator(node) {
+        if (node.parent.parent?.type !== 'Program') return
         if (node.id.type === 'Identifier' && isFunctionValue(node.init)) {
           candidates.set(node.id.name, node)
         }
