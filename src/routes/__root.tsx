@@ -5,11 +5,10 @@ import { SettingsMenu } from '@/components/settings-menu'
 
 const RouterDevtools = import.meta.env.PROD
   ? () => null
-  : lazy(() =>
-      import('@tanstack/react-router-devtools').then((m) => ({
-        default: m.TanStackRouterDevtools,
-      })),
-    )
+  : lazy(async () => {
+      const devtools = await import('@tanstack/react-router-devtools')
+      return { default: devtools.TanStackRouterDevtools }
+    })
 
 export const Route = createRootRoute({
   component: RootLayout,

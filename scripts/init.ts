@@ -10,6 +10,19 @@ import { rm } from 'node:fs/promises'
 import { basename } from 'node:path'
 
 import { Generator, getConfig } from '@tanstack/router-generator'
+import { z } from 'zod'
+
+const editablePackageJson = z.looseObject({
+  name: z.string(),
+  scripts: z.record(z.string(), z.string()),
+})
+
+type EditablePackageJson = z.infer<typeof editablePackageJson>
+
+/** Narrows parsed JSON to the fields this script edits, leaving every other key untouched. */
+function isEditablePackageJson(value: unknown): value is EditablePackageJson {
+  return editablePackageJson.safeParse(value).success
+}
 
 const root = process.cwd()
 const projectName = (process.argv[2] ?? basename(root))
@@ -23,7 +36,10 @@ async function rewrite(path: string, edit: (input: string) => string) {
 }
 
 await rewrite('package.json', (input) => {
-  const pkg = JSON.parse(input)
+  const pkg: unknown = JSON.parse(input)
+  if (!isEditablePackageJson(pkg)) {
+    throw new Error('package.json has no string `name` or `scripts` map; refusing to rewrite it.')
+  }
   pkg.name = projectName
   delete pkg.scripts.init
   return `${JSON.stringify(pkg, null, 2)}\n`
