@@ -26,6 +26,7 @@
     "vite.config.ts",
     "playwright.config.ts",
     "scripts/**/*.ts",
+    ".claude/**/*.ts",
     ".oxlint-plugins/**/*.ts",
     "e2e/**/*.ts"
   ]

@@ -25,7 +25,6 @@ dist-ssr
 
 # Tooling state
 .omc
-.claude
 
 # Env
 .env
@@ -54,3 +53,6 @@ advisor-plans/
 
 # TanStack Router generator cache
 .tanstack
+
+# Scratch dir the lint-touched hook test writes into
+tmp-lint-probe/
