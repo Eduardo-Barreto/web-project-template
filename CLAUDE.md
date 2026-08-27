@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-tools and dashboards. Bun, Vite, React 19, deployed to GitHub Pages.
+Starting point for internal tools and dashboards. Bun, Vite, React 19, deployed to GitHub Pages.
 
 ## Setup
 
@@ -9,12 +9,21 @@ On a fresh repo from this template, remind the user to generate a token with `cl
 ## Commands
 
 - `bun run dev`: dev server via portless (`name.localhost`, local machine only). `bun run dev:host` binds `0.0.0.0` for LAN access at `machine-name:5173` or IP, and is what Playwright and CI use.
-- `bun run doctor`: oxlint, oxfmt check, typecheck, knip, unit tests. Run before every commit.
+- `bun run doctor`: oxlint (type-aware plus the project's own rules), oxfmt check, typecheck, knip, unit tests. Runs in about three seconds. Run before every commit.
+- `bun run policy`: diff-level checks against the base branch (source changed with no test, dead relative link, lint config widened). Runs in CI and in the `gh pr create` gate.
 - `bun run react-doctor`: React-specific health scan (anti-patterns, perf, a11y) layered on oxlint. Vendored `ui/` and generated files are excluded via `doctor.config.json`; the CI action reports only PR-introduced issues.
-- `bun run test`: unit tests (bun test, scoped to `src`).
-- `bun run test:e2e`: Playwright end-to-end.
+- `bun run test`: unit tests (bun test, over `src`, `.claude/hooks`, `scripts` and `.oxlint-plugins`).
+- `bun run test:e2e`: Playwright end-to-end, including the axe accessibility sweep.
 - `bun run build`: typecheck then production bundle.
 - `bunx shadcn@latest add <component>`: pull a new shadcn component.
+
+## Delivery
+
+`/deliver` runs the full structured pipeline for this repo: grilling + docs, visual plan with test plan, implementation with an anti-slop cleanup pass, the deterministic gate, one Opus review of intent and cross-file logic, PR, then babysitting CI and the adversarial review workflow to green. It overrides the generic `/deliver`. See `.claude/skills/deliver/SKILL.md`.
+
+Two hooks in `.claude/settings.json` enforce this regardless of which flow you use: a `Stop` hook runs `bun run doctor` whenever the working tree has uncommitted changes, and a `PreToolUse` hook blocks `gh pr create` until the gate passes and `review-judgment` has signed off on the current scope hash.
+
+Everything a parser can decide is enforced by `bun run doctor`, not by a reviewer reading this file. The conventions below are checked by oxlint's type-aware rules plus this project's own rules in `.oxlint-plugins/`, each with a test in `.oxlint-plugins/project-conventions.test.ts`. If you disagree with a rule, change the rule; don't work around it. The rationale for that split is in `docs/deliver-decisions.md`.
 
 ## Stack
 
@@ -25,6 +34,23 @@ UI is shadcn/ui (preset `b1YnRGLNI`) on Tailwind v4. Components in `src/componen
 Data goes through TanStack Query, wired in `src/main.tsx`. Fetch with it, not in `useEffect`. These tools rarely call APIs, so there's no client layer baked in. Add one when a tool needs it.
 
 Forms use react-hook-form and Zod (`zodResolver`); see `src/features/members.tsx`. Tables use TanStack Table through the reusable `src/components/data-table.tsx`. Theme is next-themes, switched from the gear menu in `src/components/settings-menu.tsx`.
+
+## Structure
+
+```
+src/
+  routes/            file-based routes (__root, index, dashboard)
+  components/        app components (data-table, settings-menu, route-error)
+  components/ui/     shadcn, vendored, excluded from knip and most lint rules
+  features/          feature modules (data + schema + columns + form co-located)
+  lib/               query-client, cn util
+  test/              bun test setup + jest-dom matcher types
+e2e/                 Playwright specs, including the axe a11y sweep
+scripts/             init, scope-hash, diff-policy
+.oxlint-plugins/     this project's conventions as real lint rules
+.claude/             hooks, review agents, and the /deliver skill
+.github/workflows/   ci, deploy-pages, react-doctor, adversarial-review
+```
 
 ## Adding a route
 
@@ -54,10 +80,12 @@ Lead with what changed and why. Cover the design decisions, the acceptance crite
 The global `~/.claude/CLAUDE.md` rules apply. Project-specific notes:
 
 - oxlint and oxfmt own lint and format. Config in `.oxlintrc.json` and `.oxfmtrc.json`: single quotes, no semicolons, width 100, sorted imports. `bun run doctor` is the gate.
-- Named exports only (`import/no-default-export` is an error). Config files are the only exception.
-- `any` is an error. `console` is a warning. Unused vars must be prefixed `_` or deleted.
-- Accessibility is enforced (`jsx-a11y`). Use accessible roles and labels, and query by them in tests.
-- No narrating comments. If you reach for one to explain how code works, extract a named function or variable instead. The only comments worth keeping are docstrings (JSDoc/doxygen) and the rare load-bearing "why" that prevents a maintainer from breaking something.
+- Named exports only (`import/no-default-export` is an error). Config files and the oxlint plugin entrypoint are the only exceptions.
+- `any` is an error. `console` is a warning outside `scripts/` and `.claude/`. Unused vars must be prefixed `_` or deleted.
+- Accessibility is enforced (`jsx-a11y` statically, `@axe-core/playwright` at runtime). Use accessible roles and labels, and query by them in tests.
+- No narrating comments. If you reach for one to explain how code works, extract a named function or variable instead. The only comments worth keeping are docstrings (JSDoc/doxygen) and the rare load-bearing "why" that prevents a maintainer from breaking something. Exported functions need a TSDoc block; that one is linted.
+- Comments are written in English, even though PR prose is pt-BR. `project/comment-must-be-english` enforces it.
+- A `TODO` or `workaround` comment needs a tracked issue link. `project/workaround-needs-issue-link` enforces it.
 - Commits follow Conventional Commits, in English, single-line: `type(scope): description`.
 - Never add tool attribution to a commit or PR: no "Claude", no co-authored-by trailer, no session footer.
 - Never bypass git hooks with `--no-verify`; let lefthook run.
@@ -68,10 +96,10 @@ Static SPA on GitHub Pages, served at `owner.github.io/<repo>`. The deploy workf
 
 ## Testing
 
-Test behavior, not implementation. Query by role and label, never by class or test-id. Unit tests use bun test with happy-dom and Testing Library; e2e uses Playwright with accessible locators. Write a test for every bug you fix.
+Test behavior, not implementation. Query by role and label, never by class or test-id (`project/no-test-id-query` enforces it). Unit tests use bun test with happy-dom and Testing Library; e2e uses Playwright with accessible locators. Write a test for every bug you fix — `bun run policy` fails a diff that changes `src/` without touching a test.
 
 ## Writing
 
-Every piece of text this repo produces follows the anti-slop guidelines at https://files.barreto.sh/slop.md: PR bodies, commit messages, code comments, GitHub comments, and UI copy above all. WebFetch that page before writing substantial prose, and apply it. Lead with the result, cut filler, stay specific.
+Every piece of text this repo produces follows `docs/anti-slop-guidelines.md`: PR bodies, commit messages, code comments, GitHub comments, and UI copy above all. That file is a versioned copy of https://files.barreto.sh/slop.md; read the local copy, and when the upstream changes, bring the change here in the same PR. Lead with the result, cut filler, stay specific.
 
-PR descriptions, PR comments, and code review are written in Brazilian Portuguese (pt-BR). Commit messages stay in English.
+PR descriptions, PR comments, and code review are written in Brazilian Portuguese (pt-BR). Commit messages and code comments stay in English.
