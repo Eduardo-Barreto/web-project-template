@@ -73,6 +73,10 @@ describe('data-fetching rules', () => {
     expect(rulesIn('violates-parse-in-comment')).toContain('parse-before-use')
   })
 
+  test('does not accept a non-validating built-in parse as validation', () => {
+    expect(countIn('violates-parse-in-comment', 'parse-before-use')).toBe(2)
+  })
+
   test('flags a manual isLoading branch', () => {
     expect(flagged).toContain('no-manual-loading-branch')
   })
@@ -87,6 +91,10 @@ describe('comment rules', () => {
 
   test('flags a TODO with no issue reference', () => {
     expect(flagged).toContain('workaround-needs-issue-link')
+  })
+
+  test('accepts an issue reference on the line below the workaround', () => {
+    expect(countIn('clean-split-workaround', 'workaround-needs-issue-link')).toBe(0)
   })
 
   test('flags an exported function with no TSDoc', () => {

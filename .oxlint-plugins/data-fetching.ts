@@ -7,9 +7,14 @@ import { type ESTree, defineRule } from '@oxlint/plugins'
 
 const RESPONSE_READ = /\.json\s*\(/
 const ANCESTOR_LIMIT = 30
-// Not JSON.parse: parsing a string into an object validates nothing, and accepting it here
-// would let an unvalidated payload through under the appearance of a schema check.
-const ZOD_PARSE = /(?<!\bJSON)\.(?:safeParse|parse)(?:Async)?\s*\(/
+// The excluded receivers all have a `.parse` that converts rather than validates, so accepting
+// one would let an unvalidated payload through under the appearance of a schema check. This is
+// a heuristic on the receiver's name, not proof that what remains is a Zod schema: it catches
+// the built-ins people actually reach for, and `review-judgment` owns the rest.
+const NON_VALIDATING_PARSERS = String.raw`JSON|Date|url|Url|URL|querystring|qs|path`
+const ZOD_PARSE = new RegExp(
+  String.raw`(?<!\b(?:${NON_VALIDATING_PARSERS}))\.(?:safeParse|parse)(?:Async)?\s*\(`,
+)
 
 /** True for `fetch(...)`, `window.fetch(...)` and any `axios.get(...)`-style method. */
 function isNetworkCall(callee: ESTree.Expression): boolean {

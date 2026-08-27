@@ -14,6 +14,38 @@ const WORKAROUND_TERMS = /\b(?:todo|fixme|hack|xxx|workaround|for now|temporary|
 const TRACKED_REFERENCE = /#\d+|https?:\/\//
 const DOCSTRING_START = '*'
 
+type CommentBlock = { text: string; parts: ESTree.Comment[] }
+
+/**
+ * Merges runs of adjacent `//` comments into one block, so a rule reading comment prose sees
+ * what the author wrote rather than one AST node per line. Block comments never merge.
+ * @param comments - every comment in the file, in source order
+ * @returns one entry per block, carrying the joined text and the comments that formed it
+ */
+function consecutiveLineCommentBlocks(comments: readonly ESTree.Comment[]): CommentBlock[] {
+  const blocks: CommentBlock[] = []
+  let previous: ESTree.Comment | null = null
+
+  for (const comment of comments) {
+    const adjacent =
+      previous !== null &&
+      previous.type === 'Line' &&
+      comment.type === 'Line' &&
+      comment.loc.start.line === previous.loc.end.line + 1
+    if (adjacent) {
+      const block = blocks.at(-1)
+      if (block !== undefined) {
+        block.text += `\n${comment.value}`
+        block.parts.push(comment)
+      }
+    } else {
+      blocks.push({ text: comment.value, parts: [comment] })
+    }
+    previous = comment
+  }
+  return blocks
+}
+
 /** True when the initializer is a function, which is what makes an export worth documenting. */
 function isFunctionValue(node: ESTree.Expression | null | undefined): boolean {
   return node?.type === 'ArrowFunctionExpression' || node?.type === 'FunctionExpression'
@@ -47,9 +79,15 @@ export const workaroundNeedsIssueLink = defineRule({
   create(context) {
     return {
       Program() {
-        for (const comment of context.sourceCode.getAllComments()) {
-          if (WORKAROUND_TERMS.test(comment.value) && !TRACKED_REFERENCE.test(comment.value)) {
-            context.report({ loc: context.sourceCode.getLoc(comment), messageId: 'link' })
+        // Grouped, not per node: a run of `//` lines reads as one comment but parses as N,
+        // so checking each in isolation flags `// TODO: refactor` for missing the `// see #12`
+        // sitting right under it, with no way to satisfy the rule short of joining the lines.
+        for (const block of consecutiveLineCommentBlocks(context.sourceCode.getAllComments())) {
+          if (!WORKAROUND_TERMS.test(block.text) || TRACKED_REFERENCE.test(block.text)) continue
+          // Point at the line that admits the shortcut, not at whatever opened the block.
+          const offender = block.parts.find((part) => WORKAROUND_TERMS.test(part.value))
+          if (offender !== undefined) {
+            context.report({ loc: context.sourceCode.getLoc(offender), messageId: 'link' })
           }
         }
       },
