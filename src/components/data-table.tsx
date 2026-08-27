@@ -1,4 +1,5 @@
 import {
+  type Column,
   type ColumnDef,
   type SortingState,
   flexRender,
@@ -21,6 +22,20 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+const ARIA_SORT_BY_DIRECTION: Record<string, 'ascending' | 'descending'> = {
+  asc: 'ascending',
+  desc: 'descending',
+}
+
+/**
+ * Maps a column's sort state to its `aria-sort` token.
+ * @returns the direction for the one sorted column, and undefined everywhere else, so the
+ * attribute marks the active sort rather than appearing on every header at once
+ */
+function ariaSort<TData, TValue>(column: Column<TData, TValue>) {
+  return ARIA_SORT_BY_DIRECTION[String(column.getIsSorted())]
+}
+
 type DataTableProps<TData, TValue> = {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -30,6 +45,13 @@ type DataTableProps<TData, TValue> = {
   filterPlaceholder?: string
 }
 
+/**
+ * Sortable, filterable, paginated table with an accessible name and `aria-sort` on whichever
+ * header is currently sorted.
+ * @param label - accessible name announced for the table
+ * @param filterColumn - shows the filter input when set; the filter itself matches across
+ * every column, so this only decides whether the control renders
+ */
 export function DataTable<TData, TValue>({
   columns,
   data,
@@ -69,20 +91,8 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const sorted = header.column.getIsSorted()
                   return (
-                    <TableHead
-                      key={header.id}
-                      aria-sort={
-                        !header.column.getCanSort()
-                          ? undefined
-                          : sorted === 'asc'
-                            ? 'ascending'
-                            : sorted === 'desc'
-                              ? 'descending'
-                              : 'none'
-                      }
-                    >
+                    <TableHead key={header.id} aria-sort={ariaSort(header.column)}>
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
