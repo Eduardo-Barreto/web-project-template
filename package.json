@@ -14,11 +14,12 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "test": "bun test src ./.oxlint-plugins",
+    "test": "bun test src ./.claude/hooks ./scripts ./.oxlint-plugins",
     "test:e2e": "playwright test",
     "knip": "knip",
     "react-doctor": "react-doctor",
     "doctor": "oxlint && oxfmt --check . && tsc -b && knip && bun run test",
+    "policy": "bun scripts/diff-policy.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@happy-dom/global-registrator": "^20.10.6",
     "@oxlint/plugins": "^1.77.0",
     "@playwright/test": "^1.61.1",
