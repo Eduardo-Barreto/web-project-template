@@ -9,3 +9,7 @@ function undocumentedIndirect(value: string) {
 }
 
 export { undocumentedIndirect }
+
+const undocumentedArrow = (value: string) => value.padStart(2)
+
+export { undocumentedArrow }

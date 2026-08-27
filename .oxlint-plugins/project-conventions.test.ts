@@ -102,7 +102,11 @@ describe('comment rules', () => {
   })
 
   test('reaches a function exported in a separate export list', () => {
-    expect(countIn('violates-comments', 'require-tsdoc-on-exports')).toBe(2)
+    expect(countIn('violates-comments', 'require-tsdoc-on-exports')).toBe(3)
+  })
+
+  test('sees the docblock above a re-exported arrow function', () => {
+    expect(countIn('clean-documented-arrow-export', 'require-tsdoc-on-exports')).toBe(0)
   })
 
   test('reaches a function reached only through a default export', () => {

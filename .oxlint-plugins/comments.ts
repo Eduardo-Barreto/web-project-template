@@ -160,10 +160,15 @@ export const requireTsdocOnExports = defineRule({
           candidates.set(node.id.name, node)
         }
       },
+      // The declaration, not the declarator: getCommentsBefore only looks back to the previous
+      // token, which for a declarator is the `const` keyword. Asking it about the declarator
+      // can never see the docblock above the statement, so every documented arrow function
+      // re-exported through `export { }` came back undocumented.
       VariableDeclarator(node) {
-        if (node.parent.parent?.type !== 'Program') return
+        const declaration = node.parent
+        if (declaration.parent?.type !== 'Program') return
         if (node.id.type === 'Identifier' && isFunctionValue(node.init)) {
-          candidates.set(node.id.name, node)
+          candidates.set(node.id.name, declaration)
         }
       },
       'Program:exit'() {
