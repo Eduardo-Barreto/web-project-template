@@ -50,7 +50,9 @@ Dá push na `main` e o workflow `deploy-pages` builda com `BASE_PATH=/<repo>/`, 
 
 ## Review adversarial
 
-Todo PR passa por um review adversarial em duas etapas (`.github/workflows/adversarial-review.yml`): uma etapa propõe os achados, outra verifica e posta só o que sobrevive com evidência. Roda pela sua assinatura do Claude, não por token de API.
+Todo PR que não está em draft passa por um review adversarial em duas etapas (`.github/workflows/adversarial-review.yml`): uma etapa propõe os achados, outra verifica e posta só o que sobrevive com evidência. Roda pela sua assinatura do Claude, não por token de API.
+
+Draft não é revisado. Marcar como ready dispara o review na hora, e cada push depois disso revisa de novo. Abra em draft enquanto estiver iterando.
 
 Pra ligar, uma vez por repo: gere o token com `claude setup-token` e salve como secret `CLAUDE_CODE_OAUTH_TOKEN` (repo → Settings → Secrets and variables → Actions, ou no nível da org pra valer em todos). Sem o secret, a Action falha na auth. PRs de fork são pulados de propósito, porque forks não recebem secrets.
 
