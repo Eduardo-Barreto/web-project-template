@@ -5,6 +5,9 @@ name: Adversarial Review
 # to leak secrets. So the review is inert on the PR that adds or edits it, and
 # starts working once the change lands on the default branch.
 
+# ready_for_review is what picks a PR up the moment it leaves draft. The jobs below also
+# check `draft == false`, because `opened` and `synchronize` fire on drafts too and a review
+# of unfinished work costs a full run and tells the author nothing they don't already know.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -22,7 +25,10 @@ jobs:
   propose:
     # Fork PRs do not receive secrets, so the OAuth token is absent there.
     # Restrict the review to same-repo branches; forks are skipped, not broken.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Drafts are skipped until marked ready, which fires ready_for_review.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +89,12 @@ jobs:
 
   skeptic:
     needs: propose
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Stated again rather than left to `needs`, matching how the fork check was already
+    # repeated here: this job's own condition is the thing that decides whether it runs,
+    # so it should read correctly without depending on how a skipped dependency propagates.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
