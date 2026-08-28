@@ -2,9 +2,11 @@
 
 Tuning for the adversarial PR review in `.github/workflows/adversarial-review.yml`. Both review lanes read this file and treat it as the highest-priority instruction.
 
+It also sets the bar for the local `review-judgment` agent, which reviews the same kind of diff in phase 6 of `/deliver`, before the PR exists.
+
 ## Severity for this repo
 
-🔴 **Important** (fix before merge): a logic bug that produces wrong results; a `jsx-a11y` accessibility violation; type-unsafety introduced by `any` or `as`; anything that breaks the build or a CI check; UI copy that violates the anti-slop guidelines at https://files.barreto.sh/slop.md.
+🔴 **Important** (fix before merge): a logic bug that produces wrong results; a `jsx-a11y` accessibility violation; type-unsafety introduced by `any` or `as`; anything that breaks the build or a CI check; UI copy that violates `docs/anti-slop-guidelines.md`.
 
 🟡 **Nit** (worth fixing, not blocking): everything else, including style and naming. Post at most five; summarize the rest as a count.
 
