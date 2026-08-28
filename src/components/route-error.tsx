@@ -2,6 +2,7 @@ import type { ErrorComponentProps } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 
+/** Route-level error boundary UI: shows what broke and offers a retry that re-runs the loader. */
 export function RouteError({ error, reset }: ErrorComponentProps) {
   return (
     <div
@@ -15,6 +16,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
   )
 }
 
+/** Fallback for a route path the router can't match. */
 export function NotFound() {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-2 py-16 text-center">

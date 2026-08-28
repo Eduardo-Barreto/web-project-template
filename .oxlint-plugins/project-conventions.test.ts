@@ -1,0 +1,173 @@
+import { describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
+
+import { z } from 'zod'
+
+const FIXTURES_DIR = '.oxlint-plugins/fixtures'
+const FIXTURES_CONFIG = `${FIXTURES_DIR}/oxlintrc.json`
+const RULE_CODE = /^project\((?<rule>[a-z-]+)\)$/
+const OXLINT_TIMEOUT_MS = 30_000
+
+const oxlintReport = z.looseObject({
+  diagnostics: z.array(z.looseObject({ code: z.string(), filename: z.string() })),
+})
+
+type Finding = { rule: string; file: string }
+
+/**
+ * Lints the fixture directory with the project's real config and returns only this plugin's
+ * findings. Fixtures need their own config because the production one ignores them, which is
+ * what keeps `bun run doctor` from failing on deliberate violations.
+ */
+function lintFixtures(): Finding[] {
+  const oxlint = spawnSync('bunx', ['oxlint', '-c', FIXTURES_CONFIG, '-f', 'json', FIXTURES_DIR], {
+    encoding: 'utf8',
+    timeout: OXLINT_TIMEOUT_MS,
+  })
+  // Checked before parsing: a killed or never-started process returns null streams, and
+  // JSON.parse(null) throws something that says nothing about what actually went wrong.
+  if (oxlint.error !== undefined) {
+    throw new Error(`oxlint did not run: ${String(oxlint.error)}`)
+  }
+  const report = oxlintReport.safeParse(JSON.parse(oxlint.stdout))
+  if (!report.success) {
+    throw new Error(`oxlint returned no usable diagnostics: ${oxlint.stdout}${oxlint.stderr}`)
+  }
+
+  return report.data.diagnostics.flatMap((diagnostic) => {
+    const rule = RULE_CODE.exec(diagnostic.code)?.groups?.rule
+    return rule === undefined ? [] : [{ rule, file: diagnostic.filename }]
+  })
+}
+
+const findings = lintFixtures()
+const rulesIn = (fixture: string) =>
+  findings.filter((finding) => finding.file.includes(fixture)).map((finding) => finding.rule)
+const countIn = (fixture: string, rule: string) =>
+  rulesIn(fixture).filter((found) => found === rule).length
+
+describe('data-fetching rules', () => {
+  const flagged = rulesIn('violates-data-fetching')
+
+  test('flags fetching inside useEffect', () => {
+    expect(flagged).toContain('no-fetch-in-effect')
+  })
+
+  test('flags a queryKey built from a bare string', () => {
+    expect(flagged).toContain('query-key-from-factory')
+  })
+
+  test('flags useForm without a resolver', () => {
+    expect(flagged).toContain('form-requires-zod-resolver')
+  })
+
+  test('flags a payload read without a Zod parse', () => {
+    expect(flagged).toContain('parse-before-use')
+  })
+
+  test('reaches a method as well as a function, reporting each once', () => {
+    expect(countIn('violates-data-fetching', 'parse-before-use')).toBe(2)
+  })
+
+  test('does not accept a comment mentioning parse as the validation itself', () => {
+    expect(rulesIn('violates-parse-in-comment')).toContain('parse-before-use')
+  })
+
+  test('does not accept a non-validating built-in parse as validation', () => {
+    expect(countIn('violates-parse-in-comment', 'parse-before-use')).toBe(2)
+  })
+
+  test('flags a manual isLoading branch', () => {
+    expect(flagged).toContain('no-manual-loading-branch')
+  })
+})
+
+describe('comment rules', () => {
+  const flagged = rulesIn('violates-comments')
+
+  test('flags a comment written in Portuguese', () => {
+    expect(flagged).toContain('comment-must-be-english')
+  })
+
+  test('flags a TODO with no issue reference', () => {
+    expect(flagged).toContain('workaround-needs-issue-link')
+  })
+
+  test('accepts an issue reference on the line below the workaround', () => {
+    expect(countIn('clean-split-workaround', 'workaround-needs-issue-link')).toBe(0)
+  })
+
+  test('flags an exported function with no TSDoc', () => {
+    expect(flagged).toContain('require-tsdoc-on-exports')
+  })
+
+  test('reaches a function exported in a separate export list', () => {
+    expect(countIn('violates-comments', 'require-tsdoc-on-exports')).toBe(3)
+  })
+
+  test('sees the docblock above a re-exported arrow function', () => {
+    expect(countIn('clean-documented-arrow-export', 'require-tsdoc-on-exports')).toBe(0)
+  })
+
+  test('reaches a function reached only through a default export', () => {
+    expect(rulesIn('violates-default-export')).toContain('require-tsdoc-on-exports')
+  })
+
+  test('resolves an exported name to its module-scope declaration, not a nested shadow', () => {
+    expect(countIn('clean-shadowed-names', 'require-tsdoc-on-exports')).toBe(0)
+  })
+})
+
+describe('naming rules', () => {
+  const flagged = rulesIn('violates-naming')
+
+  test('flags a Manager suffix', () => {
+    expect(flagged).toContain('no-manager-helper-suffix')
+  })
+
+  test('flags a vague identifier', () => {
+    expect(flagged).toContain('no-vague-identifier')
+  })
+
+  test('flags a static constant declared inside a component', () => {
+    expect(flagged).toContain('no-static-constant-in-component')
+  })
+
+  test('reaches an arrow component as well as a declared one', () => {
+    expect(countIn('violates-naming', 'no-static-constant-in-component')).toBe(2)
+  })
+})
+
+describe('test rules', () => {
+  const flagged = rulesIn('violates-tests')
+
+  test('flags a query by test-id', () => {
+    expect(flagged).toContain('no-test-id-query')
+  })
+
+  test('flags a title starting with should', () => {
+    expect(flagged).toContain('test-title-no-should')
+  })
+
+  test('flags a test outside any describe block', () => {
+    expect(flagged).toContain('require-top-level-describe')
+  })
+
+  test('reaches a title behind a table form like it.each', () => {
+    expect(rulesIn('violates-tests-table')).toContain('test-title-no-should')
+  })
+
+  test('leaves a playwright hook like test.beforeEach out of the describe requirement', () => {
+    expect(rulesIn('clean-playwright')).toEqual([])
+  })
+
+  test('recognises a table-form describe.each as a describe', () => {
+    expect(rulesIn('clean-tests')).toEqual([])
+  })
+})
+
+describe('conforming code', () => {
+  test('reports nothing on a file that follows every convention', () => {
+    expect(rulesIn('clean')).toEqual([])
+  })
+})

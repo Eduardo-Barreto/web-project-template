@@ -62,6 +62,10 @@ export const memberColumns: ColumnDef<Member>[] = [
   },
 ]
 
+/**
+ * Form that validates a new team member against `memberSchema` before handing it up.
+ * @param onAdd - called with the parsed member once the form passes validation
+ */
 export function MemberForm({ onAdd }: { onAdd: (member: Member) => void }) {
   const form = useForm<Member>({
     resolver: zodResolver(memberSchema),
@@ -76,7 +80,10 @@ export function MemberForm({ onAdd }: { onAdd: (member: Member) => void }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap items-start gap-3">
+      <form
+        onSubmit={(event) => void form.handleSubmit(onSubmit)(event)}
+        className="flex flex-wrap items-start gap-3"
+      >
         <FormField
           control={form.control}
           name="name"

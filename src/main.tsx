@@ -29,11 +29,10 @@ declare module '@tanstack/react-router' {
 
 const QueryDevtools = import.meta.env.PROD
   ? () => null
-  : lazy(() =>
-      import('@tanstack/react-query-devtools').then((m) => ({
-        default: m.ReactQueryDevtools,
-      })),
-    )
+  : lazy(async () => {
+      const devtools = await import('@tanstack/react-query-devtools')
+      return { default: devtools.ReactQueryDevtools }
+    })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -17,6 +17,7 @@ const themes = [
   { value: 'system', label: 'Sistema' },
 ] as const
 
+/** Gear menu holding app-wide settings, currently the light, dark and system theme choice. */
 export function SettingsMenu() {
   const { theme, setTheme } = useTheme()
 
