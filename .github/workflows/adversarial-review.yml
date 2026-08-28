@@ -150,8 +150,8 @@ jobs:
             improvement opportunities as a short list.
 
             Write every posted comment in Brazilian Portuguese (pt-BR). Every
-            word you post follows the anti-slop guidelines at
-            https://files.barreto.sh/slop.md: no preamble, no self-congratulation,
-            no attribution footer. Do not modify any source file.
+            word you post follows `docs/anti-slop-guidelines.md`, checked out in
+            this workspace: no preamble, no self-congratulation, no attribution
+            footer. Do not modify any source file.
           claude_args: |
             --allowedTools "Read,Grep,Glob,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(bun run typecheck),Bash(bun test:*),mcp__github_inline_comment__create_inline_comment"
