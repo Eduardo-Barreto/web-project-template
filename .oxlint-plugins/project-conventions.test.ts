@@ -40,7 +40,8 @@ function lintFixtures(): Finding[] {
     // expensive to find by eye.
     const reason = error instanceof Error ? error.message : String(error)
     throw new Error(
-      `oxlint returned unparseable output (${reason}): ${oxlint.stdout}${oxlint.stderr}`, { cause: error },
+      `oxlint returned unparseable output (${reason}): ${oxlint.stdout}${oxlint.stderr}`,
+      { cause: error },
     )
   }
   const report = oxlintReport.safeParse(parsed)
