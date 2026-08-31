@@ -11,7 +11,7 @@ import { readHookPayload, requireProjectDir, runHookGuard } from './hook-input.t
 
 if (readHookPayload()?.stop_hook_active === true) process.exit(0)
 
-runHookGuard(() => {
+await runHookGuard(() => {
   requireProjectDir('finish without checking bun run doctor', 2)
 
   // No path restriction: `bun run doctor` runs oxfmt/oxlint over the whole

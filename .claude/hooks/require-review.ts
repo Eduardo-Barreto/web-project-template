@@ -12,8 +12,6 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { scopeHash } from '../../scripts/scope-hash.ts'
-import { FINDINGS_DIR, JUDGMENT_REVIEWER, judgmentBlocker } from './findings-status.ts'
 import { isRecord, readHookPayload, requireProjectDir, runHookGuard } from './hook-input.ts'
 import { isPrCreateCommand } from './pr-create-matcher.ts'
 
@@ -41,8 +39,8 @@ if (command !== null && !isPrCreateCommand(command)) {
 const GATE_TIMEOUT_MS = 120_000
 const GATE_OUTPUT_TAIL_LINES = 20
 
-function firstLineOfFindings(): string | null {
-  const file = join(FINDINGS_DIR, `${JUDGMENT_REVIEWER}.md`)
+/** First line of a findings file, or null when the file isn't there at all. */
+function firstLineOf(file: string): string | null {
   if (!existsSync(file)) return null
   return readFileSync(file, 'utf8').split('\n', 1)[0] ?? ''
 }
@@ -73,10 +71,18 @@ function requireGate(script: string): void {
 // Past this point the command is (or might be) `gh pr create`, so failures
 // below fail closed: this hook exists to stop an unreviewed PR from opening,
 // and an internal error here is not a reason to let one through.
-runHookGuard(() => {
+await runHookGuard(async () => {
   requireProjectDir('open a PR without checking reviews', 2)
 
-  const blocker = judgmentBlocker(firstLineOfFindings(), scopeHash())
+  // Loaded here, not at the top: these two reach outside `.claude/hooks/` into `scripts/`,
+  // and a static import that fails to resolve throws during module load, before the guard
+  // exists to turn it into exit 2. Claude Code reads exit 1 as non-blocking, so the one
+  // failure mode this hook must never have -- opening silently -- was the one it had.
+  const { scopeHash } = await import('../../scripts/scope-hash.ts')
+  const { FINDINGS_DIR, JUDGMENT_REVIEWER, judgmentBlocker } = await import('./findings-status.ts')
+
+  const findings = firstLineOf(join(FINDINGS_DIR, `${JUDGMENT_REVIEWER}.md`))
+  const blocker = judgmentBlocker(findings, scopeHash())
   if (blocker !== null) throw new Error(blocker)
 
   requireGate('doctor')
