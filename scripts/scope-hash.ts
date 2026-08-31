@@ -44,12 +44,18 @@ export function defaultBranch(): string {
 }
 
 /**
- * Resolves the merge-base of `base` and HEAD, retrying against `origin/<base>` for a clone
- * that only has the remote-tracking ref.
+ * Resolves the merge-base of `base` and HEAD, preferring the remote-tracking ref and falling
+ * back to a local branch of the same name.
+ *
+ * Remote-tracking first because that is what the PR will actually be compared against. A local
+ * branch of the same name is a mirror that goes stale the moment someone else merges, and
+ * every consumer of this scope reads too much when it does: `bun run policy` reports widening
+ * that is already on the base branch, and `review-judgment` spends its one pass on code the
+ * PR never touched.
  * @throws when neither ref resolves, so a caller can't hash a scope it failed to determine
  */
 export function mergeBase(base: string): string {
-  for (const ref of [base, `origin/${base}`]) {
+  for (const ref of [`origin/${base}`, base]) {
     const result = spawnSync('git', ['merge-base', ref, 'HEAD'], {
       encoding: 'utf8',
       timeout: GIT_TIMEOUT_MS,
