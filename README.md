@@ -60,7 +60,7 @@ O review de CI é a segunda lane. A primeira roda antes do PR existir: o `/deliv
 
 ## Gate local
 
-`bun run doctor` é o gate determinístico e roda em ~3s: oxlint com as regras type-aware, as 14 regras próprias do projeto em `.oxlint-plugins/`, oxfmt, `tsc -b`, knip e os testes. `bun run policy` complementa com o que linter por arquivo não vê: fonte mexida sem teste, link relativo morto, config de lint alargada.
+`bun run doctor` é o gate determinístico e roda em ~13s: oxlint com as regras type-aware, as 14 regras próprias do projeto em `.oxlint-plugins/`, oxfmt, `tsc -b`, knip e os testes. `bun run policy` complementa com o que linter por arquivo não vê: fonte mexida sem teste, link relativo morto, config de lint alargada.
 
 Três hooks do Claude Code (`.claude/settings.json`) mantêm isso de pé sem depender de ninguém lembrar: `doctor` no `Stop`, gate completo no `gh pr create`, e oxlint no arquivo recém-editado devolvendo os diagnósticos como contexto.
 
