@@ -16,15 +16,38 @@ const SCHEMA_NAME = /[Ss]chema$/
 const RECEIVER_DEPTH_LIMIT = 20
 
 /**
+ * Strips type-only syntax wrapping a receiver, so a cast or a non-null assertion can't hide
+ * the binding behind it.
+ * @returns the wrapped expression, or null when `node` is not one of those wrappers
+ */
+function withoutTypeSyntax(node: ESTree.Node): ESTree.Node | null {
+  if (node.type === 'TSAsExpression') return node.expression
+  if (node.type === 'TSSatisfiesExpression') return node.expression
+  if (node.type === 'TSNonNullExpression') return node.expression
+  if (node.type === 'TSInstantiationExpression') return node.expression
+  return null
+}
+
+/**
  * Leftmost identifier a member or call chain is rooted at: `z` for `z.object({}).parse`,
  * `JSON` for `JSON.parse`, `memberSchema` for `memberSchema.safeParse`.
  * @returns the name, or null when the chain is rooted at something that isn't an identifier
  */
 function rootIdentifier(node: ESTree.Expression): string | null {
-  let current: ESTree.Expression = node
+  let current: ESTree.Node = node
   for (let depth = 0; depth < RECEIVER_DEPTH_LIMIT; depth += 1) {
     if (current.type === 'Identifier') return current.name
+    const unwrapped = withoutTypeSyntax(current)
+    if (unwrapped !== null) {
+      current = unwrapped
+      continue
+    }
     if (current.type === 'MemberExpression') {
+      // `this.schema.parse(...)` roots at `this`, which names nothing. The property sitting
+      // next to it is the binding a reader would call the schema.
+      if (current.object.type === 'ThisExpression' && !current.computed) {
+        return current.property.type === 'Identifier' ? current.property.name : null
+      }
       current = current.object
       continue
     }

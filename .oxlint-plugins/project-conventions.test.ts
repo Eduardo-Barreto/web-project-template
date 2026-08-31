@@ -103,6 +103,10 @@ describe('data-fetching rules', () => {
     expect(countIn('clean-local-schema', 'parse-before-use')).toBe(0)
   })
 
+  test('reads through a cast and through a this-rooted field to the receiver behind them', () => {
+    expect(countIn('clean-wrapped-schema', 'parse-before-use')).toBe(0)
+  })
+
   test('flags a manual isLoading branch', () => {
     expect(flagged).toContain('no-manual-loading-branch')
   })
@@ -123,8 +127,14 @@ describe('comment rules', () => {
     expect(countIn('clean-split-workaround', 'workaround-needs-issue-link')).toBe(0)
   })
 
+  // The pair, not either alone: `temporary` bare is `temporary directory`, and dropping it
+  // outright would have lost `temporary fix`, the confession the rule exists for. See #5.
   test('leaves temporary as an ordinary noun phrase out of the workaround terms', () => {
     expect(countIn('clean-temporary-noun', 'workaround-needs-issue-link')).toBe(0)
+  })
+
+  test('still flags temporary next to the noun that makes it a confession', () => {
+    expect(countIn('violates-temporary-fix', 'workaround-needs-issue-link')).toBe(1)
   })
 
   test('flags an exported function with no TSDoc', () => {
