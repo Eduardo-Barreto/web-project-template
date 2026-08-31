@@ -35,8 +35,13 @@ function lintFixtures(): Finding[] {
   let parsed: unknown
   try {
     parsed = JSON.parse(oxlint.stdout)
-  } catch {
-    throw new Error(`oxlint returned unparseable output: ${oxlint.stdout}${oxlint.stderr}`)
+  } catch (error) {
+    // The parser's own message carries the offending position, which a large stdout makes
+    // expensive to find by eye.
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `oxlint returned unparseable output (${reason}): ${oxlint.stdout}${oxlint.stderr}`, { cause: error },
+    )
   }
   const report = oxlintReport.safeParse(parsed)
   if (!report.success) {

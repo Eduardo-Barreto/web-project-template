@@ -17,6 +17,15 @@ const ZOD_PARSE = new RegExp(
   String.raw`(?<!\b(?:${NON_VALIDATING_PARSERS}))\.(?:safeParse|parse)(?:Async)?\s*\(`,
 )
 
+/** True for a `useEffect(...)` call, the ancestor no-fetch-in-effect is looking for. */
+function isUseEffectCall(node: ESTree.Node): boolean {
+  return (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 'useEffect'
+  )
+}
+
 /** True for `fetch(...)`, `window.fetch(...)` and any `axios.get(...)`-style method. */
 function isNetworkCall(callee: ESTree.Expression): boolean {
   if (callee.type === 'Identifier') return callee.name === 'fetch'
@@ -38,14 +47,9 @@ export const noFetchInEffect = defineRule({
       // one either.
       CallExpression(node) {
         if (!isNetworkCall(node.callee)) return
-        const insideEffect = hasAncestorMatching(
-          node,
-          (candidate) =>
-            candidate.type === 'CallExpression' &&
-            candidate.callee.type === 'Identifier' &&
-            candidate.callee.name === 'useEffect',
-        )
-        if (insideEffect) context.report({ node, messageId: 'useQuery' })
+        if (hasAncestorMatching(node, isUseEffectCall)) {
+          context.report({ node, messageId: 'useQuery' })
+        }
       },
     }
   },
