@@ -16,7 +16,7 @@ const PORTUGUESE_DIACRITICS = /[ãõçáéíóúâêôàü]/i
 // `para`. Negation is not the distinction: `this is not a hack` fires just as much, and that
 // term stays. Rationale tracked in #5.
 const WORKAROUND_TERMS =
-  /\b(?:todo|fixme|hack|xxx|workaround|for now|gambiarra|temporary\s+(?:fix|workaround|solution|patch|hack))\b/i
+  /\b(?:todo|fixme|hack|xxx|workaround|for now|gambiarra|temporary\s+(?:fix|workaround|solution|patch|hack|shim|measure|implementation|approach))\b/i
 const TRACKED_REFERENCE = /#\d+|https?:\/\//
 const DOCSTRING_START = '*'
 
@@ -90,8 +90,13 @@ export const workaroundNeedsIssueLink = defineRule({
         // sitting right under it, with no way to satisfy the rule short of joining the lines.
         for (const block of consecutiveLineCommentBlocks(context.sourceCode.getAllComments())) {
           if (!WORKAROUND_TERMS.test(block.text) || TRACKED_REFERENCE.test(block.text)) continue
-          // Point at the line that admits the shortcut, not at whatever opened the block.
-          const offender = block.parts.find((part) => WORKAROUND_TERMS.test(part.value))
+          // Point at the line that admits the shortcut, falling back to whatever opened the
+          // block. A multi-word term can match across the newline this rule joins `//` lines
+          // with while matching no single line, and without the fallback that block reports
+          // nowhere: the confession written the way people actually write it, split over two
+          // lines, would be the one shape the rule let through.
+          const offender =
+            block.parts.find((part) => WORKAROUND_TERMS.test(part.value)) ?? block.parts.at(0)
           if (offender !== undefined) {
             context.report({ loc: context.sourceCode.getLoc(offender), messageId: 'link' })
           }

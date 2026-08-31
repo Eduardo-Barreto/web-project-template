@@ -137,6 +137,12 @@ describe('comment rules', () => {
     expect(countIn('violates-temporary-fix', 'workaround-needs-issue-link')).toBe(1)
   })
 
+  // The multi-word term matches across the newline joining two `//` lines while matching
+  // neither line alone, so the block had nowhere to report and stayed silent.
+  test('flags a confession split across two comment lines', () => {
+    expect(countIn('violates-split-confession', 'workaround-needs-issue-link')).toBe(1)
+  })
+
   test('flags an exported function with no TSDoc', () => {
     expect(flagged).toContain('require-tsdoc-on-exports')
   })
