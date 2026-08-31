@@ -53,7 +53,15 @@ function copyWorkingTree(destination: string): void {
     input: tracked,
     maxBuffer: ARCHIVE_MAX_BYTES,
   })
-  spawnSync('tar', ['-x', '-C', destination], { input: archive.stdout })
+  // A truncated archive would surface as a confusing init failure several steps later, and
+  // maxBuffer overflow is silent: spawnSync reports it as an error, not a short read.
+  if (archive.status !== 0 || archive.error) {
+    throw new Error(`archiving the working tree failed: ${String(archive.error ?? archive.stderr)}`)
+  }
+  const extract = spawnSync('tar', ['-x', '-C', destination], { input: archive.stdout })
+  if (extract.status !== 0) {
+    throw new Error(`extracting the working tree failed: ${String(extract.stderr)}`)
+  }
 }
 
 function linkDependencies(destination: string): void {
@@ -77,7 +85,7 @@ describe('bun run init', () => {
     run('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init'])
 
     expect(failureOutput(run('bun', ['scripts/init.ts', PROJECT_NAME]))).toBe('')
-  })
+  }, STEP_TIMEOUT_MS)
 
   afterAll(() => {
     if (project) rmSync(project, { recursive: true, force: true })
@@ -89,19 +97,17 @@ describe('bun run init', () => {
     expect(existsSync(join(project, 'scripts', 'init.ts'))).toBe(false)
   })
 
-  // Not `bun run doctor`: its test step would re-enter this file and recurse. These are the
-  // three doctor checks a fresh project can actually fail.
-  test('leaves a project that typechecks', () => {
-    expect(failureOutput(run('bunx', ['tsc', '-b']))).toBe('')
-  })
-
-  test('leaves a project that lints, including the e2e spec init generates', () => {
-    expect(failureOutput(run('bunx', ['oxlint']))).toBe('')
-  })
-
-  test('leaves no dependency knip reports as unused', () => {
-    expect(failureOutput(run('bunx', ['knip']))).toBe('')
-  })
+  // The whole gate, not a subset: every one of its five steps has broken in a fresh project
+  // at some point, including `bun test` on a path init had deleted. No recursion, because
+  // init removes this file from the copy before doctor's test step globs `scripts/`.
+  // The default 5s per-test timeout is under doctor's own runtime in a fresh project.
+  test(
+    'leaves a project where bun run doctor passes',
+    () => {
+      expect(failureOutput(run('bun', ['run', 'doctor']))).toBe('')
+    },
+    STEP_TIMEOUT_MS,
+  )
 
   test('leaves a working bun run policy', () => {
     expect(failureOutput(run('bun', ['run', 'policy']))).toBe('')
