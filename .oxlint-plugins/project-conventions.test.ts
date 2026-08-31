@@ -29,7 +29,15 @@ function lintFixtures(): Finding[] {
   if (oxlint.error !== undefined) {
     throw new Error(`oxlint did not run: ${String(oxlint.error)}`)
   }
-  const report = oxlintReport.safeParse(JSON.parse(oxlint.stdout))
+  // A timeout kill mid-write leaves truncated JSON, and a bare SyntaxError from JSON.parse
+  // beats the descriptive throw below to the exit, hiding the output worth reading in CI.
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(oxlint.stdout)
+  } catch {
+    throw new Error(`oxlint returned unparseable output: ${oxlint.stdout}${oxlint.stderr}`)
+  }
+  const report = oxlintReport.safeParse(parsed)
   if (!report.success) {
     throw new Error(`oxlint returned no usable diagnostics: ${oxlint.stdout}${oxlint.stderr}`)
   }
