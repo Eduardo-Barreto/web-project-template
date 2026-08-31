@@ -36,14 +36,16 @@ function makeBranchWithChange(): string {
 /**
  * Builds a clone whose local `main` sits one commit behind `origin/main`, the state any
  * checkout reaches by not pulling after someone else merges.
- * @returns the clone path and the name of the file that only `origin/main` knows about
+ * @returns the clone path, and the enclosing directory to remove afterwards
  */
-function makeCloneWithStaleLocalMain(): { repo: string; onlyOnRemote: string } {
+function makeCloneWithStaleLocalMain(): { repo: string; root: string } {
   const root = mkdtempSync(join(tmpdir(), 'scope-hash-remote-'))
   const remote = join(root, 'remote.git')
   const repo = join(root, 'work')
   run('git', ['init', '--bare', '-b', 'main', remote], root)
-  run('git', ['clone', '-q', remote, repo], root)
+  // Named explicitly rather than inherited: without protocol v2 the clone falls back to the
+  // runner's init.defaultBranch, and the `push -u origin main` below would have nothing to push.
+  run('git', ['-c', 'init.defaultBranch=main', 'clone', '-q', remote, repo], root)
   run('git', ['config', 'user.email', 'test@example.com'], repo)
   run('git', ['config', 'user.name', 'Test'], repo)
 
@@ -62,7 +64,7 @@ function makeCloneWithStaleLocalMain(): { repo: string; onlyOnRemote: string } {
   run('git', ['branch', '-f', 'main', branchPoint], repo)
   writeFileSync(join(repo, 'feature.txt'), 'work in progress\n')
 
-  return { repo, onlyOnRemote: 'merged-by-someone-else.txt' }
+  return { repo, root }
 }
 
 function scopeFilesIn(repo: string): string[] {
@@ -125,12 +127,11 @@ describe('scope hash', () => {
   // pass on other people's merged code. CI never saw it, because a PR checkout has no local
   // `main` to prefer.
   test('measures against origin/main, not a local main left behind', () => {
-    const { repo, onlyOnRemote } = makeCloneWithStaleLocalMain()
+    const { repo, root } = makeCloneWithStaleLocalMain()
     try {
       expect(scopeFilesIn(repo)).toEqual(['feature.txt'])
-      expect(scopeFilesIn(repo)).not.toContain(onlyOnRemote)
     } finally {
-      rmSync(join(repo, '..'), { recursive: true, force: true })
+      rmSync(root, { recursive: true, force: true })
     }
   })
 

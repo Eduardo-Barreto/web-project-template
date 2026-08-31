@@ -62,7 +62,7 @@ export function mergeBase(base: string): string {
     })
     if (result.status === 0) return result.stdout.trim()
   }
-  throw new Error(`git merge-base failed against both '${base}' and 'origin/${base}'.`)
+  throw new Error(`git merge-base failed against both 'origin/${base}' and '${base}'.`)
 }
 
 /** Every path in the review scope, whether the change is committed, staged or untracked. */
