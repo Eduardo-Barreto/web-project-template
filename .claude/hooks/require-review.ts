@@ -77,7 +77,7 @@ await runHookGuard(async () => {
   // Loaded here, not at the top: these two reach outside `.claude/hooks/` into `scripts/`,
   // and a static import that fails to resolve throws during module load, before the guard
   // exists to turn it into exit 2. Claude Code reads exit 1 as non-blocking, so the one
-  // failure mode this hook must never have -- opening silently -- was the one it had.
+  // failure mode this hook must never have, opening silently, was the one it had.
   const { scopeHash } = await import('../../scripts/scope-hash.ts')
   const { FINDINGS_DIR, JUDGMENT_REVIEWER, judgmentBlocker } = await import('./findings-status.ts')
 

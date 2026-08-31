@@ -70,7 +70,10 @@ await rewrite('knip.json', (input) => {
   if (!isEditableKnipConfig(config)) {
     throw new Error('knip.json has no `ignoreDependencies` array; refusing to rewrite it.')
   }
-  config.ignoreDependencies.push('react-hook-form', '@hookform/resolvers')
+  const alreadyIgnored = new Set(config.ignoreDependencies)
+  for (const dependency of ['react-hook-form', '@hookform/resolvers']) {
+    if (!alreadyIgnored.has(dependency)) config.ignoreDependencies.push(dependency)
+  }
   return `${JSON.stringify(config, null, 2)}\n`
 })
 

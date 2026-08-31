@@ -46,7 +46,7 @@ O dashboard de exemplo (`/dashboard`, `src/features/members.tsx`) mostra o padr�
 
 ## Deploy
 
-Dá push na `main` e o workflow `deploy-pages` builda com `BASE_PATH=/<repo>/`, copia o `index.html` pra `404.html` (pros deep links sobreviverem ao refresh) e publica no GitHub Pages, em `owner.github.io/<repo>`. Configure o Pages → Source do repo pra GitHub Actions uma vez. Pages publicado é público mesmo com o repo privado (a não ser que seja GitHub Enterprise Cloud com Pages privado de verdade), então não tem auth no app — não guarde nada sensível no bundle.
+Dá push na `main` e o workflow `deploy-pages` builda com `BASE_PATH=/<repo>/`, copia o `index.html` pra `404.html` (pros deep links sobreviverem ao refresh) e publica no GitHub Pages, em `owner.github.io/<repo>`. Configure o Pages → Source do repo pra GitHub Actions uma vez. Pages publicado é público mesmo com o repo privado (a não ser que seja GitHub Enterprise Cloud com Pages privado de verdade), então não tem auth no app: não guarde nada sensível no bundle.
 
 ## Review adversarial
 
@@ -60,7 +60,7 @@ O review de CI é a segunda lane. A primeira roda antes do PR existir: o `/deliv
 
 ## Gate local
 
-`bun run doctor` é o gate determinístico e roda em ~13s: oxlint com as regras type-aware, as 14 regras próprias do projeto em `.oxlint-plugins/`, oxfmt, `tsc -b`, knip e os testes. `bun run policy` complementa com o que linter por arquivo não vê: fonte mexida sem teste, link relativo morto, config de lint alargada.
+`bun run doctor` é o gate determinístico: oxlint com as regras type-aware, as 14 regras próprias do projeto em `.oxlint-plugins/`, oxfmt, `tsc -b`, knip e os testes. `bun run policy` complementa com o que linter por arquivo não vê: fonte mexida sem teste, link relativo morto, config de lint alargada.
 
 Três hooks do Claude Code (`.claude/settings.json`) mantêm isso de pé sem depender de ninguém lembrar: `doctor` no `Stop`, gate completo no `gh pr create`, e oxlint no arquivo recém-editado devolvendo os diagnósticos como contexto.
 

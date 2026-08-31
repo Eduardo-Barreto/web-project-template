@@ -83,7 +83,7 @@ describe('require-review hook process', () => {
 
   // Regression: scripts/init.ts used to delete `scripts/` wholesale, which took scope-hash.ts
   // with it. As a static import it threw during module load, before runHookGuard existed to
-  // catch it, so the process exited 1 -- which Claude Code reads as non-blocking. Every
+  // catch it, so the process exited 1, which Claude Code reads as non-blocking. Every
   // project made from this template shipped with an open PR gate that still looked
   // configured. Exit 2 is the whole point of the assertion.
   test('fails closed with exit 2 when scope-hash.ts cannot be resolved', () => {
