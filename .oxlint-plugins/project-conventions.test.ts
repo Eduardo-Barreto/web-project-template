@@ -29,7 +29,22 @@ function lintFixtures(): Finding[] {
   if (oxlint.error !== undefined) {
     throw new Error(`oxlint did not run: ${String(oxlint.error)}`)
   }
-  const report = oxlintReport.safeParse(JSON.parse(oxlint.stdout))
+  // Not the timeout case, which sets `error` and is caught above: this is oxlint or bunx
+  // writing non-JSON on a config error or a panic. A bare SyntaxError from JSON.parse beats
+  // the descriptive throw below to the exit, hiding the output worth reading in CI.
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(oxlint.stdout)
+  } catch (error) {
+    // The parser's own message carries the offending position, which a large stdout makes
+    // expensive to find by eye.
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `oxlint returned unparseable output (${reason}): ${oxlint.stdout}${oxlint.stderr}`,
+      { cause: error },
+    )
+  }
+  const report = oxlintReport.safeParse(parsed)
   if (!report.success) {
     throw new Error(`oxlint returned no usable diagnostics: ${oxlint.stdout}${oxlint.stderr}`)
   }
@@ -155,6 +170,16 @@ describe('test rules', () => {
 
   test('reaches a title behind a table form like it.each', () => {
     expect(rulesIn('violates-tests-table')).toContain('test-title-no-should')
+  })
+
+  // Counts, not toContain: both of these pass either way as membership checks, and the two
+  // table-form guards they pin were deletable green before these existed.
+  test('counts a table form outside a describe once, not once per half', () => {
+    expect(countIn('violates-table-outside-describe', 'require-top-level-describe')).toBe(1)
+  })
+
+  test('does not accept an uninvoked describe.each builder as the describe it would build', () => {
+    expect(countIn('violates-uninvoked-builder', 'require-top-level-describe')).toBe(1)
   })
 
   test('leaves a playwright hook like test.beforeEach out of the describe requirement', () => {

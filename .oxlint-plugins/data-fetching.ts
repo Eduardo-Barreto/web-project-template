@@ -5,8 +5,9 @@
 
 import { type ESTree, defineRule } from '@oxlint/plugins'
 
+import { hasAncestorMatching } from './ancestors.ts'
+
 const RESPONSE_READ = /\.json\s*\(/
-const ANCESTOR_LIMIT = 30
 // The excluded receivers all have a `.parse` that converts rather than validates, so accepting
 // one would let an unvalidated payload through under the appearance of a schema check. This is
 // a heuristic on the receiver's name, not proof that what remains is a Zod schema: it catches
@@ -15,6 +16,15 @@ const NON_VALIDATING_PARSERS = String.raw`JSON|Date|url|Url|URL|querystring|qs|p
 const ZOD_PARSE = new RegExp(
   String.raw`(?<!\b(?:${NON_VALIDATING_PARSERS}))\.(?:safeParse|parse)(?:Async)?\s*\(`,
 )
+
+/** True for a `useEffect(...)` call, the ancestor no-fetch-in-effect is looking for. */
+function isUseEffectCall(node: ESTree.Node): boolean {
+  return (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 'useEffect'
+  )
+}
 
 /** True for `fetch(...)`, `window.fetch(...)` and any `axios.get(...)`-style method. */
 function isNetworkCall(callee: ESTree.Expression): boolean {
@@ -37,21 +47,8 @@ export const noFetchInEffect = defineRule({
       // one either.
       CallExpression(node) {
         if (!isNetworkCall(node.callee)) return
-        let current: ESTree.Node | null | undefined = node.parent
-        for (
-          let depth = 0;
-          depth < ANCESTOR_LIMIT && current !== null && current !== undefined;
-          depth += 1
-        ) {
-          if (
-            current.type === 'CallExpression' &&
-            current.callee.type === 'Identifier' &&
-            current.callee.name === 'useEffect'
-          ) {
-            context.report({ node, messageId: 'useQuery' })
-            return
-          }
-          current = 'parent' in current ? current.parent : undefined
+        if (hasAncestorMatching(node, isUseEffectCall)) {
+          context.report({ node, messageId: 'useQuery' })
         }
       },
     }
