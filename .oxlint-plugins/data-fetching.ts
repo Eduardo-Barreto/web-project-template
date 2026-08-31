@@ -7,15 +7,45 @@ import { type ESTree, defineRule } from '@oxlint/plugins'
 
 import { hasAncestorMatching } from './ancestors.ts'
 
-const RESPONSE_READ = /\.json\s*\(/
-// The excluded receivers all have a `.parse` that converts rather than validates, so accepting
-// one would let an unvalidated payload through under the appearance of a schema check. This is
-// a heuristic on the receiver's name, not proof that what remains is a Zod schema: it catches
-// the built-ins people actually reach for, and `review-judgment` owns the rest.
-const NON_VALIDATING_PARSERS = String.raw`JSON|Date|url|Url|URL|querystring|qs|path`
-const ZOD_PARSE = new RegExp(
-  String.raw`(?<!\b(?:${NON_VALIDATING_PARSERS}))\.(?:safeParse|parse)(?:Async)?\s*\(`,
-)
+const RESPONSE_READ_METHOD = 'json'
+const PARSE_METHODS = new Set(['parse', 'safeParse', 'parseAsync', 'safeParseAsync'])
+const ZOD_NAMESPACE = 'z'
+// Fallback for a schema imported from another module, where the initializer isn't in this file
+// to resolve. A local `const x = z.object(...)` is recognised by its initializer instead.
+const SCHEMA_NAME = /[Ss]chema$/
+const RECEIVER_DEPTH_LIMIT = 20
+
+/**
+ * Leftmost identifier a member or call chain is rooted at: `z` for `z.object({}).parse`,
+ * `JSON` for `JSON.parse`, `memberSchema` for `memberSchema.safeParse`.
+ * @returns the name, or null when the chain is rooted at something that isn't an identifier
+ */
+function rootIdentifier(node: ESTree.Expression): string | null {
+  let current: ESTree.Expression = node
+  for (let depth = 0; depth < RECEIVER_DEPTH_LIMIT; depth += 1) {
+    if (current.type === 'Identifier') return current.name
+    if (current.type === 'MemberExpression') {
+      current = current.object
+      continue
+    }
+    if (current.type === 'CallExpression') {
+      current = current.callee
+      continue
+    }
+    return null
+  }
+  return null
+}
+
+/** True for a non-computed `.<name>(...)` call, the only shape either check cares about. */
+function methodCall(
+  node: ESTree.CallExpression,
+): { receiver: ESTree.Expression; method: string } | null {
+  const { callee } = node
+  if (callee.type !== 'MemberExpression' || callee.computed) return null
+  if (callee.property.type !== 'Identifier') return null
+  return { receiver: callee.object, method: callee.property.name }
+}
 
 /** True for a `useEffect(...)` call, the ancestor no-fetch-in-effect is looking for. */
 function isUseEffectCall(node: ESTree.Node): boolean {
@@ -113,6 +143,12 @@ export const formRequiresZodResolver = defineRule({
  * function. Scoped to the function, not the expression, so `const raw = await res.json()`
  * followed by `schema.parse(raw)` stays clean.
  *
+ * Matched on the AST, not on source text. A text match could not tell `JSON.parse` from a
+ * schema's without a lookbehind, and the lookbehind it used treated `myUrl.parse` as
+ * validation while accepting any receiver outside a fixed deny-list. Reading the receiver off
+ * the AST makes the question exact: is this chain rooted at `z`, at a binding this file
+ * initialises from `z`, or at a name ending in Schema?
+ *
  * Covers declarations, arrows and function expressions (object and class methods). When the
  * offender nests, only the innermost function is reported: blaming the enclosing one too
  * points at a whole function body for a problem that lives on one line inside it.
@@ -125,29 +161,13 @@ export const parseBeforeUse = defineRule({
     },
   },
   create(context) {
-    const offenders: ESTree.Node[] = []
-
-    /**
-     * Source text of `node` with every comment blanked out, keeping the original offsets.
-     * Matching raw text would let a comment merely mentioning `.parse(` satisfy the rule,
-     * a false negative at exactly the boundary this rule exists to guard.
-     */
-    const codeWithoutComments = (node: ESTree.Node) => {
-      const [nodeStart] = context.sourceCode.getRange(node)
-      let text = context.sourceCode.getText(node)
-      for (const comment of context.sourceCode.getCommentsInside(node)) {
-        const [start, end] = context.sourceCode.getRange(comment)
-        text =
-          text.slice(0, start - nodeStart) + ' '.repeat(end - start) + text.slice(end - nodeStart)
-      }
-      return text
-    }
+    const functions: ESTree.Node[] = []
+    const responseReads: ESTree.Node[] = []
+    const parseCalls: { node: ESTree.Node; receiver: string | null }[] = []
+    const localSchemas = new Set<string>()
 
     const collect = (node: ESTree.Node) => {
-      const body = codeWithoutComments(node)
-      if (RESPONSE_READ.test(body) && !ZOD_PARSE.test(body)) {
-        offenders.push(node)
-      }
+      functions.push(node)
     }
 
     const contains = (outer: ESTree.Node, inner: ESTree.Node) => {
@@ -156,11 +176,37 @@ export const parseBeforeUse = defineRule({
       return outerStart <= innerStart && outerEnd >= innerEnd
     }
 
+    const validates = (receiver: string | null) =>
+      receiver !== null &&
+      (receiver === ZOD_NAMESPACE || localSchemas.has(receiver) || SCHEMA_NAME.test(receiver))
+
     return {
       FunctionDeclaration: collect,
       ArrowFunctionExpression: collect,
       FunctionExpression: collect,
+      // Collected, not resolved here: a schema can be declared below the function that parses
+      // with it, so the set is only complete at Program:exit.
+      VariableDeclarator(node) {
+        if (node.id.type !== 'Identifier' || node.init === null) return
+        if (rootIdentifier(node.init) === ZOD_NAMESPACE) localSchemas.add(node.id.name)
+      },
+      CallExpression(node) {
+        const call = methodCall(node)
+        if (call === null) return
+        if (call.method === RESPONSE_READ_METHOD) {
+          responseReads.push(node)
+          return
+        }
+        if (PARSE_METHODS.has(call.method)) {
+          parseCalls.push({ node, receiver: rootIdentifier(call.receiver) })
+        }
+      },
       'Program:exit'() {
+        const offenders = functions.filter(
+          (fn) =>
+            responseReads.some((read) => contains(fn, read)) &&
+            !parseCalls.some((parse) => validates(parse.receiver) && contains(fn, parse.node)),
+        )
         for (const offender of offenders) {
           const nested = offenders.some((other) => other !== offender && contains(offender, other))
           if (!nested) {

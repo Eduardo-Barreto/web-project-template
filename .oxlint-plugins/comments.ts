@@ -10,7 +10,12 @@ import { type ESTree, defineRule } from '@oxlint/plugins'
 const PORTUGUESE_WORDS =
   /\b(?:não|então|porque|também|apenas|isso|esse|essa|agora|precisa|deve|está|são|seja|pode|mas|uma|pelo|pela|aqui|sempre|nunca|quando|onde)\b/i
 const PORTUGUESE_DIACRITICS = /[ãõçáéíóúâêôàü]/i
-const WORKAROUND_TERMS = /\b(?:todo|fixme|hack|xxx|workaround|for now|temporary|gambiarra)\b/i
+// No `temporary`: it is an ordinary noun phrase in `temporary directory`, `temporary file`,
+// `temporary buffer`, and it fires inside a sentence denying a workaround exists ("this is not
+// a temporary fix"). Each of those blocks a commit over a correct comment, the same reason
+// PORTUGUESE_WORDS excludes `dos` and `para`. `for now` stays: it is a disclosure idiom, not a
+// noun phrase, and it carries no plausible negation. Rationale tracked in #5.
+const WORKAROUND_TERMS = /\b(?:todo|fixme|hack|xxx|workaround|for now|gambiarra)\b/i
 const TRACKED_REFERENCE = /#\d+|https?:\/\//
 const DOCSTRING_START = '*'
 

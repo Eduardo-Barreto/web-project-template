@@ -92,6 +92,17 @@ describe('data-fetching rules', () => {
     expect(countIn('violates-parse-in-comment', 'parse-before-use')).toBe(2)
   })
 
+  // Both receivers satisfied the old text match: `payloadCodec` because its name sat outside
+  // the deny-list, `currentUrl` because the deny-list's word boundary never matched a name
+  // that merely ended in Url.
+  test('does not accept a parse on a receiver that is not a schema', () => {
+    expect(countIn('violates-parse-receivers', 'parse-before-use')).toBe(2)
+  })
+
+  test('resolves a schema by its z initializer, not by a Schema suffix in its name', () => {
+    expect(countIn('clean-local-schema', 'parse-before-use')).toBe(0)
+  })
+
   test('flags a manual isLoading branch', () => {
     expect(flagged).toContain('no-manual-loading-branch')
   })
@@ -110,6 +121,10 @@ describe('comment rules', () => {
 
   test('accepts an issue reference on the line below the workaround', () => {
     expect(countIn('clean-split-workaround', 'workaround-needs-issue-link')).toBe(0)
+  })
+
+  test('leaves temporary as an ordinary noun phrase out of the workaround terms', () => {
+    expect(countIn('clean-temporary-noun', 'workaround-needs-issue-link')).toBe(0)
   })
 
   test('flags an exported function with no TSDoc', () => {
