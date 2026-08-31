@@ -6,8 +6,10 @@
 import type { ESTree } from '@oxlint/plugins'
 
 // A parent chain terminates at Program, so this is a bound against a malformed chain, not a
-// statement about how deep real code nests. Pick generously: a cap that trips on ordinary
-// nesting turns a rule quiet, which is the failure mode nobody notices.
+// statement about how deep real code nests. Pick generously, because the two consumers fail
+// in opposite directions when it trips: a rule that reports on finding an ancestor goes quiet
+// (no-fetch-in-effect misses the useEffect), and one that reports on finding none goes loud
+// (require-top-level-describe flags a test that is properly nested).
 const ANCESTOR_LIMIT = 30
 
 /**
