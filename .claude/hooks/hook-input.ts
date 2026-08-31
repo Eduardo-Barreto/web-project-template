@@ -29,13 +29,17 @@ export function requireProjectDir(purpose: string, exitCode: number): void {
 }
 
 /**
- * Runs `main`, exiting 0 if it returns normally. A thrown error prints its
- * message and exits 2 (fail closed) instead of letting an uncaught
- * exception exit 1, which Claude Code treats as non-blocking.
+ * Runs `main`, exiting 0 if it settles normally. A thrown error or a rejected promise prints
+ * its message and exits 2 (fail closed) instead of letting an uncaught exception exit 1,
+ * which Claude Code treats as non-blocking.
+ *
+ * Async so a hook can load a dependency from outside `.claude/hooks/` inside the guard. A
+ * static import that fails to resolve throws during module load, before this guard exists,
+ * and exit 1 would open the gate the hook is there to close.
  */
-export function runHookGuard(main: () => void): never {
+export async function runHookGuard(main: () => void | Promise<void>): Promise<never> {
   try {
-    main()
+    await main()
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))
     process.exit(2)

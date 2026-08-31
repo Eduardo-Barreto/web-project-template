@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -79,6 +79,31 @@ describe('require-review hook process', () => {
 
     expect(result.status).toBe(2)
     expect(result.stderr).toContain('CLAUDE_PROJECT_DIR')
+  })
+
+  // Regression: scripts/init.ts used to delete `scripts/` wholesale, which took scope-hash.ts
+  // with it. As a static import it threw during module load, before runHookGuard existed to
+  // catch it, so the process exited 1, which Claude Code reads as non-blocking. Every
+  // project made from this template shipped with an open PR gate that still looked
+  // configured. Exit 2 is the whole point of the assertion.
+  test('fails closed with exit 2 when scope-hash.ts cannot be resolved', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'require-review-noscripts-'))
+    try {
+      const hooks = join(dir, '.claude', 'hooks')
+      mkdirSync(hooks, { recursive: true })
+      cpSync(import.meta.dir, hooks, { recursive: true })
+
+      const result = spawnSync('bun', [join(hooks, 'require-review.ts')], {
+        input: JSON.stringify({ tool_input: { command: 'gh pr create --title x' } }),
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
+      })
+
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('scope-hash.ts')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   // The reviewer computes its hash by running scripts/scope-hash.ts, while the hook computes

@@ -9,7 +9,7 @@ On a fresh repo from this template, remind the user to generate a token with `cl
 ## Commands
 
 - `bun run dev`: dev server via portless (`name.localhost`, local machine only). `bun run dev:host` binds `0.0.0.0` for LAN access at `machine-name:5173` or IP, and is what Playwright and CI use.
-- `bun run doctor`: oxlint (type-aware plus the project's own rules), oxfmt check, typecheck, knip, unit tests. Runs in about three seconds. Run before every commit.
+- `bun run doctor`: oxlint (type-aware plus the project's own rules), oxfmt check, typecheck, knip, unit tests. Most of its runtime is `scripts/init.test.ts`, which runs the whole gate again inside a fresh project. Run before every commit.
 - `bun run policy`: diff-level checks against the base branch (source changed with no test, dead relative link, lint config widened). Runs in CI and in the `gh pr create` gate.
 - `bun run react-doctor`: React-specific health scan (anti-patterns, perf, a11y) layered on oxlint. Vendored `ui/` and generated files are excluded via `doctor.config.json`; the CI action reports only PR-introduced issues.
 - `bun run test`: unit tests (bun test, over `src`, `.claude/hooks`, `scripts` and `.oxlint-plugins`).
@@ -96,7 +96,7 @@ Static SPA on GitHub Pages, served at `owner.github.io/<repo>`. The deploy workf
 
 ## Testing
 
-Test behavior, not implementation. Query by role and label, never by class or test-id (`project/no-test-id-query` enforces it). Unit tests use bun test with happy-dom and Testing Library; e2e uses Playwright with accessible locators. Write a test for every bug you fix — `bun run policy` fails a diff that changes `src/` without touching a test.
+Test behavior, not implementation. Query by role and label, never by class or test-id (`project/no-test-id-query` enforces it). Unit tests use bun test with happy-dom and Testing Library; e2e uses Playwright with accessible locators. Write a test for every bug you fix: `bun run policy` fails a diff that changes `src/` without touching a test.
 
 ## Writing
 
