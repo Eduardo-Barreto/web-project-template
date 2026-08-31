@@ -5,6 +5,8 @@
 
 import { type ESTree, defineRule } from '@oxlint/plugins'
 
+import { hasAncestorMatching } from './ancestors.ts'
+
 const TEST_ID_QUERY = /^(?:get|query|find)(?:All)?ByTestId$/
 const TEST_CALLERS = new Set(['test', 'it'])
 const DESCRIBE_CALLER = 'describe'
@@ -26,7 +28,6 @@ const TEST_MODIFIERS = new Set([
   'todoIf',
 ])
 const SHOULD_TITLE = /^should\b/i
-const ANCESTOR_LIMIT = 20
 
 /**
  * Resolves what a call ultimately calls, through modifiers and table forms.
@@ -45,22 +46,28 @@ function resolveCaller(callee: ESTree.Expression): string | null {
   return resolveCaller(callee.object)
 }
 
-function isTestCall(node: ESTree.CallExpression): boolean {
-  // `it.each(table)` builds the runner; `it.each(table)(title, fn)` is the test. Both resolve
-  // to `it`, so without this the same test reports twice.
-  if (
+/**
+ * True for the builder half of a table form: `it.each(table)`, not the `it.each(table)(...)`
+ * that runs. Both resolve to the same caller, so a rule that counts either as the construct
+ * itself sees one test twice, or treats a builder as the block it is an argument to.
+ */
+function isTableBuilder(node: ESTree.CallExpression): boolean {
+  return (
     node.callee.type === 'MemberExpression' &&
     !node.callee.computed &&
     TABLE_BUILDERS.has(node.callee.property.name)
-  ) {
-    return false
-  }
+  )
+}
+
+function isTestCall(node: ESTree.CallExpression): boolean {
+  if (isTableBuilder(node)) return false
   const caller = resolveCaller(node.callee)
   return caller !== null && TEST_CALLERS.has(caller)
 }
 
 function isDescribeCall(node: ESTree.Node): boolean {
-  return node.type === 'CallExpression' && resolveCaller(node.callee) === DESCRIBE_CALLER
+  if (node.type !== 'CallExpression' || isTableBuilder(node)) return false
+  return resolveCaller(node.callee) === DESCRIBE_CALLER
 }
 
 export const noTestIdQuery = defineRule({
@@ -113,15 +120,7 @@ export const requireTopLevelDescribe = defineRule({
     return {
       CallExpression(node) {
         if (!isTestCall(node)) return
-        let current: ESTree.Node | null | undefined = node.parent
-        for (
-          let depth = 0;
-          depth < ANCESTOR_LIMIT && current !== null && current !== undefined;
-          depth += 1
-        ) {
-          if (isDescribeCall(current)) return
-          current = 'parent' in current ? current.parent : undefined
-        }
+        if (hasAncestorMatching(node, isDescribeCall)) return
         context.report({ node, messageId: 'wrap' })
       },
     }

@@ -5,8 +5,9 @@
 
 import { type ESTree, defineRule } from '@oxlint/plugins'
 
+import { hasAncestorMatching } from './ancestors.ts'
+
 const RESPONSE_READ = /\.json\s*\(/
-const ANCESTOR_LIMIT = 30
 // The excluded receivers all have a `.parse` that converts rather than validates, so accepting
 // one would let an unvalidated payload through under the appearance of a schema check. This is
 // a heuristic on the receiver's name, not proof that what remains is a Zod schema: it catches
@@ -37,22 +38,14 @@ export const noFetchInEffect = defineRule({
       // one either.
       CallExpression(node) {
         if (!isNetworkCall(node.callee)) return
-        let current: ESTree.Node | null | undefined = node.parent
-        for (
-          let depth = 0;
-          depth < ANCESTOR_LIMIT && current !== null && current !== undefined;
-          depth += 1
-        ) {
-          if (
-            current.type === 'CallExpression' &&
-            current.callee.type === 'Identifier' &&
-            current.callee.name === 'useEffect'
-          ) {
-            context.report({ node, messageId: 'useQuery' })
-            return
-          }
-          current = 'parent' in current ? current.parent : undefined
-        }
+        const insideEffect = hasAncestorMatching(
+          node,
+          (candidate) =>
+            candidate.type === 'CallExpression' &&
+            candidate.callee.type === 'Identifier' &&
+            candidate.callee.name === 'useEffect',
+        )
+        if (insideEffect) context.report({ node, messageId: 'useQuery' })
       },
     }
   },
