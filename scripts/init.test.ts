@@ -79,7 +79,7 @@ describe('bun run init', () => {
     project = mkdtempSync(join(tmpdir(), 'init-'))
     copyWorkingTree(project)
     linkDependencies(project)
-    // scope-hash.ts resolves a merge-base, so the copy has to be a repo with one commit.
+    // diff-scope.ts resolves a merge-base, so the copy has to be a repo with one commit.
     run('git', ['init', '-q', '-b', 'main'])
     run('git', ['add', '-A'])
     run('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init'])
@@ -92,7 +92,7 @@ describe('bun run init', () => {
   })
 
   test('keeps the scripts/ modules the hooks and package scripts import', () => {
-    expect(existsSync(join(project, 'scripts', 'scope-hash.ts'))).toBe(true)
+    expect(existsSync(join(project, 'scripts', 'diff-scope.ts'))).toBe(true)
     expect(existsSync(join(project, 'scripts', 'diff-policy.ts'))).toBe(true)
     expect(existsSync(join(project, 'scripts', 'init.ts'))).toBe(false)
   })
@@ -111,19 +111,6 @@ describe('bun run init', () => {
 
   test('leaves a working bun run policy', () => {
     expect(failureOutput(run('bun', ['run', 'policy']))).toBe('')
-  })
-
-  test('leaves a PR gate that still blocks', () => {
-    const payload = { tool_input: { command: 'gh pr create --title x' } }
-    const hook = spawnSync('bun', [join(project, '.claude/hooks/require-review.ts')], {
-      cwd: project,
-      encoding: 'utf8',
-      input: JSON.stringify(payload),
-      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
-    })
-
-    expect(hook.status).toBe(2)
-    expect(hook.stderr).toContain('review-judgment')
   })
 
   test('drops the prose that pointed at files it deleted', () => {

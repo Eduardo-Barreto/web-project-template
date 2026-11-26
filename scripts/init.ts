@@ -142,9 +142,9 @@ test.describe('Home', () => {
 `,
 )
 
-// This file and its test only. `scripts/` also holds scope-hash.ts and diff-policy.ts,
-// which `bun run policy` and the gh-pr-create hook import: removing the directory left a
-// fresh project with a broken doctor, a broken policy, and a PR gate that failed open.
+// This file and its test only. `scripts/` also holds diff-scope.ts and diff-policy.ts,
+// which `bun run policy` imports: removing the directory left a fresh project with a broken
+// doctor and a broken policy.
 await Promise.all([
   rm('scripts/init.ts', { force: true }),
   rm('scripts/init.test.ts', { force: true }),
