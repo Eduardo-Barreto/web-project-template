@@ -19,11 +19,9 @@ On a fresh repo from this template, remind the user to generate a token with `cl
 
 ## Delivery
 
-`/deliver` runs the full structured pipeline for this repo: grilling + docs, visual plan with test plan, implementation with an anti-slop cleanup pass, the deterministic gate, one Opus review of intent and cross-file logic, PR, then babysitting CI and the adversarial review workflow to green. It overrides the generic `/deliver`. See `.claude/skills/deliver/SKILL.md`.
+Three hooks in `.claude/settings.json` enforce the gate: a `Stop` hook runs `bun run doctor` whenever the working tree has uncommitted changes, a `PreToolUse` hook blocks `gh pr create` until the gate passes and `review-judgment` has signed off on the current scope hash, and a `PostToolUse` hook lints each edited file and feeds the diagnostics straight back.
 
-Three hooks in `.claude/settings.json` enforce this regardless of which flow you use: a `Stop` hook runs `bun run doctor` whenever the working tree has uncommitted changes, a `PreToolUse` hook blocks `gh pr create` until the gate passes and `review-judgment` has signed off on the current scope hash, and a `PostToolUse` hook lints each edited file and feeds the diagnostics straight back.
-
-Everything a parser can decide is enforced by `bun run doctor`, not by a reviewer reading this file. The conventions below are checked by oxlint's type-aware rules plus this project's own rules in `.oxlint-plugins/`, each with a test in `.oxlint-plugins/project-conventions.test.ts`. If you disagree with a rule, change the rule; don't work around it. The rationale for that split is in `docs/deliver-decisions.md`.
+Everything a parser can decide is enforced by `bun run doctor`, not by a reviewer reading this file. The conventions below are checked by oxlint's type-aware rules plus this project's own rules in `.oxlint-plugins/`, each with a test in `.oxlint-plugins/project-conventions.test.ts`. If you disagree with a rule, change the rule; don't work around it.
 
 ## Stack
 
@@ -48,7 +46,7 @@ src/
 e2e/                 Playwright specs, including the axe a11y sweep
 scripts/             init, scope-hash, diff-policy
 .oxlint-plugins/     this project's conventions as real lint rules
-.claude/             hooks, review agents, and the /deliver skill
+.claude/             hooks and review agents
 .github/workflows/   ci, deploy-pages, react-doctor, adversarial-review
 ```
 

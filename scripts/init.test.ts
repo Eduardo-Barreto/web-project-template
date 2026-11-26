@@ -130,7 +130,6 @@ describe('bun run init', () => {
     for (const doc of ['CLAUDE.md', 'README.md']) {
       const content = readFileSync(join(project, doc), 'utf8')
 
-      expect(content).not.toContain('deliver-decisions.md')
       expect(content).not.toContain('src/features/members.tsx')
     }
   })

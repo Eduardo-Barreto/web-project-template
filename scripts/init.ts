@@ -85,8 +85,6 @@ await Promise.all([
   rm('src/routes/dashboard.tsx', { force: true }),
   rm('src/features', { recursive: true, force: true }),
   rm('e2e/dashboard.spec.ts', { force: true }),
-  // This repo's own migration record, not documentation the new project can act on.
-  rm('docs/deliver-decisions.md', { force: true }),
 ])
 
 await Bun.write(
@@ -103,17 +101,12 @@ function Home() {
 `,
 )
 
-// The decisions file goes with the example dashboard, so the prose that pointed at it
-// would otherwise name a path this project no longer has.
-await rewrite('CLAUDE.md', (input) =>
-  input
-    .replace(' The rationale for that split is in `docs/deliver-decisions.md`.', '')
-    .replace('; see `src/features/members.tsx`', ''),
-)
+// The prose that pointed at the example dashboard would otherwise name a path this
+// project no longer has.
+await rewrite('CLAUDE.md', (input) => input.replace('; see `src/features/members.tsx`', ''))
 
 await rewrite('README.md', (input) =>
   input
-    .replace(', e o porquê de cada peça em `docs/deliver-decisions.md`', '')
     .replace(': forms type-safe, veja o dashboard de exemplo', ': forms type-safe')
     .replace(
       /\nO dashboard de exemplo \(`\/dashboard`, `src\/features\/members\.tsx`\)[^\n]*\n/,
