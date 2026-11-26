@@ -10,7 +10,7 @@ On a fresh repo from this template, remind the user to generate a token with `cl
 
 - `bun run dev`: dev server via portless (`name.localhost`, local machine only). `bun run dev:host` binds `0.0.0.0` for LAN access at `machine-name:5173` or IP, and is what Playwright and CI use.
 - `bun run doctor`: oxlint (type-aware plus the project's own rules), oxfmt check, typecheck, knip, unit tests. Most of its runtime is `scripts/init.test.ts`, which runs the whole gate again inside a fresh project. Run before every commit.
-- `bun run policy`: diff-level checks against the base branch (source changed with no test, dead relative link, lint config widened). Runs in CI and in the `gh pr create` gate.
+- `bun run policy`: diff-level checks against the base branch (source changed with no test, dead relative link, lint config widened). Runs in CI.
 - `bun run react-doctor`: React-specific health scan (anti-patterns, perf, a11y) layered on oxlint. Vendored `ui/` and generated files are excluded via `doctor.config.json`; the CI action reports only PR-introduced issues.
 - `bun run test`: unit tests (bun test, over `src`, `.claude/hooks`, `scripts` and `.oxlint-plugins`).
 - `bun run test:e2e`: Playwright end-to-end, including the axe accessibility sweep.
@@ -19,11 +19,9 @@ On a fresh repo from this template, remind the user to generate a token with `cl
 
 ## Delivery
 
-`/deliver` runs the full structured pipeline for this repo: grilling + docs, visual plan with test plan, implementation with an anti-slop cleanup pass, the deterministic gate, one Opus review of intent and cross-file logic, PR, then babysitting CI and the adversarial review workflow to green. It overrides the generic `/deliver`. See `.claude/skills/deliver/SKILL.md`.
+Two hooks in `.claude/settings.json` enforce the gate: a `Stop` hook runs `bun run doctor` whenever the working tree has uncommitted changes, and a `PostToolUse` hook lints each edited file and feeds the diagnostics straight back.
 
-Three hooks in `.claude/settings.json` enforce this regardless of which flow you use: a `Stop` hook runs `bun run doctor` whenever the working tree has uncommitted changes, a `PreToolUse` hook blocks `gh pr create` until the gate passes and `review-judgment` has signed off on the current scope hash, and a `PostToolUse` hook lints each edited file and feeds the diagnostics straight back.
-
-Everything a parser can decide is enforced by `bun run doctor`, not by a reviewer reading this file. The conventions below are checked by oxlint's type-aware rules plus this project's own rules in `.oxlint-plugins/`, each with a test in `.oxlint-plugins/project-conventions.test.ts`. If you disagree with a rule, change the rule; don't work around it. The rationale for that split is in `docs/deliver-decisions.md`.
+Everything a parser can decide is enforced by `bun run doctor`, not by a reviewer reading this file. The conventions below are checked by oxlint's type-aware rules plus this project's own rules in `.oxlint-plugins/`, each with a test in `.oxlint-plugins/project-conventions.test.ts`. If you disagree with a rule, change the rule; don't work around it.
 
 ## Stack
 
@@ -46,9 +44,9 @@ src/
   lib/               query-client, cn util
   test/              bun test setup + jest-dom matcher types
 e2e/                 Playwright specs, including the axe a11y sweep
-scripts/             init, scope-hash, diff-policy
+scripts/             init, diff-scope, diff-policy
 .oxlint-plugins/     this project's conventions as real lint rules
-.claude/             hooks, review agents, and the /deliver skill
+.claude/             hooks and review agents
 .github/workflows/   ci, deploy-pages, react-doctor, adversarial-review
 ```
 
